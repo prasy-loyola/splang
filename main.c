@@ -18,7 +18,7 @@ enum TokenType {
 };
 
 const char *tokenTypeLiterals[] = {"OPEN_PARAN",  "CLOSE_PARAN", "LAMBDA",
-                                   "DOT",         "VARIABLE",        "_EOF",
+                                   "DOT",         "VARIABLE",    "_EOF",
                                    "WHITE_SPACE", "ILLEGAL"};
 
 struct Token {
@@ -58,16 +58,10 @@ struct Token nextToken(struct Lexer *lexer) {
   return token;
 }
 
-int main(void) {
-
-  char *lambda = "($ abc . x)";
-  struct Token tokens[MAX_TOKENS] = {0};
-  struct Lexer lexer = {
-      .text = lambda, .pos = lambda, .tokens = tokens, .token_count = 0};
-
+int lex(struct Lexer *lexer) {
   while (true) {
     struct Token token = {0};
-    switch (*lexer.pos) {
+    switch (*lexer->pos) {
     case '(':
       token.type = OPEN_PARAN;
       break;
@@ -90,22 +84,25 @@ int main(void) {
       token.type = _EOF;
       break;
     default:
-      token = nextToken(&lexer);
+      token = nextToken(lexer);
       break;
     }
 
     if (!token.literal) {
       char *literal = malloc(2);
-      snprintf(literal, 2, "%c", *lexer.pos);
+      snprintf(literal, 2, "%c", *lexer->pos);
       token.literal = literal;
       //      printf("'%s' : %s: %p\n", token.literal,
       //      tokenTypeLiterals[token.type], (void *)&literal);
     } else {
     }
 
-    if (lexer.token_count < MAX_TOKENS) {
-      lexer.tokens[lexer.token_count] = token;
-      lexer.token_count++;
+    if (token.type == WHITE_SPACE) {
+      lexer->pos++;
+      continue;
+    } else if (lexer->token_count < MAX_TOKENS) {
+      lexer->tokens[lexer->token_count] = token;
+      lexer->token_count++;
     } else {
       fprintf(stderr, "ERROR: Max Token count reached");
       return 1;
@@ -114,14 +111,38 @@ int main(void) {
     if (token.type == _EOF) {
       break;
     }
-    lexer.pos++;
+    lexer->pos++;
   }
+  return 0;
+}
 
+int main(void) {
+
+  char *lambda = "($ x . x)";
+  struct Token tokens[MAX_TOKENS] = {0};
+  struct Lexer lexer = {
+      .text = lambda, 
+      .pos = lambda, 
+      .tokens = tokens, 
+      .token_count = 0
+  };
+
+  lex(&lexer);
+
+  struct Fn {
+    struct Token *params;
+    struct Token *result;
+  };
+
+
+  struct Fn functions[10] = {0};
   printf("Tokens: \n");
   for (size_t i = 0; i < lexer.token_count; ++i) {
     printf("'%s' : %s\n", lexer.tokens[i].literal,
            tokenTypeLiterals[lexer.tokens[i].type]);
   }
+ 
+
 
   return 0;
 }
