@@ -55,6 +55,7 @@ struct Token nextToken(struct Lexer *lexer) {
     token.type = VARIABLE;
   }
 
+  lexer->pos--;
   return token;
 }
 
@@ -118,31 +119,91 @@ int lex(struct Lexer *lexer) {
 
 int main(void) {
 
-  char *lambda = "($ x . x)";
+  char *lambda = "($ x . d   )";
   struct Token tokens[MAX_TOKENS] = {0};
   struct Lexer lexer = {
-      .text = lambda, 
-      .pos = lambda, 
-      .tokens = tokens, 
-      .token_count = 0
-  };
+      .text = lambda, .pos = lambda, .tokens = tokens, .token_count = 0};
 
   lex(&lexer);
 
   struct Fn {
-    struct Token *params;
-    struct Token *result;
+    struct Token param;
+    struct Token result;
   };
 
-
   struct Fn functions[10] = {0};
-  printf("Tokens: \n");
+  size_t functions_count = 0;
   for (size_t i = 0; i < lexer.token_count; ++i) {
-    printf("'%s' : %s\n", lexer.tokens[i].literal,
-           tokenTypeLiterals[lexer.tokens[i].type]);
+    if (lexer.tokens[i].type == OPEN_PARAN) {
+      if (i + 1 < lexer.token_count && lexer.tokens[i + 1].type == LAMBDA) {
+        // Variable - param
+        i++;
+        if (i + 1 >= lexer.token_count || lexer.tokens[i + 1].type == _EOF) {
+          fprintf(stderr, "ERROR: unexpected EOF 1\n");
+          return 1;
+        }
+        if (lexer.tokens[i + 1].type != VARIABLE) {
+          fprintf(stderr, "ERROR: expected variable , found %s\n",
+                  tokenTypeLiterals[lexer.tokens[i + 1].type]);
+          return 1;
+        }
+
+        functions[functions_count].param = lexer.tokens[i + 1];
+
+        // DOT
+        i++;
+        if (i + 1 >= lexer.token_count || lexer.tokens[i + 1].type == _EOF) {
+          fprintf(stderr, "ERROR: unexpected EOF2\n");
+          return 1;
+        }
+        if (lexer.tokens[i + 1].type != DOT) {
+          fprintf(stderr, "ERROR: expected variable , found %s\n",
+                  tokenTypeLiterals[lexer.tokens[i + 1].type]);
+          return 1;
+        }
+
+        // Variable - result
+        i++;
+        if (i + 1 >= lexer.token_count || lexer.tokens[i + 1].type == _EOF) {
+          fprintf(stderr, "ERROR: unexpected EOF3\n");
+          return 1;
+        }
+        if (lexer.tokens[i + 1].type != VARIABLE) {
+          fprintf(stderr, "ERROR: expected variable , found %s\n",
+                  tokenTypeLiterals[lexer.tokens[i + 1].type]);
+          return 1;
+        }
+
+        functions[functions_count].result = lexer.tokens[i + 1];
+        // ClosedParan
+        i++;
+        if (i + 1 >= lexer.token_count || lexer.tokens[i + 1].type == _EOF) {
+          fprintf(stderr, "ERROR: unexpected EOF3\n");
+          return 1;
+        }
+        if (lexer.tokens[i + 1].type != CLOSE_PARAN) {
+          fprintf(stderr, "ERROR: expected close Param , found %s\n",
+                  tokenTypeLiterals[lexer.tokens[i + 1].type]);
+          return 1;
+        }
+        i++;
+      }
+    }
+
+    else if (lexer.tokens[i].type == _EOF) {
+
+    } else {
+      fprintf(stderr, "ERROR: expected function call , found %s\n",
+              tokenTypeLiterals[lexer.tokens[i].type]);
+      //  return 1;
+    }
   }
- 
 
+  //  struct Token arg = {
+  //    .type = VARIABLE,
+  //    .literal = "test"
+  //  };
 
-  return 0;
+  struct Fn fn1 = functions[0];
+  printf("(λ %s . %s)", fn1.param.literal, fn1.result.literal);
 }
