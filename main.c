@@ -35,36 +35,33 @@ struct Lexer {
   size_t token_count;
 };
 
-struct Token nextToken(struct Lexer *lexer) {
+void nextToken(struct Lexer *lexer, struct Token *token) {
 
   char *start = lexer->pos;
   char *literal = malloc(MAX_VAR_NAME_SIZE);
-  struct Token token = {
-      .type = ILLEGAL,
-      .literal = literal,
-      .position = lexer->pos - lexer->text,
-  };
+      token->type = ILLEGAL;
+      token->literal = literal;
+      token->position = lexer->pos - lexer->text;
 
   while ((*lexer->pos >= 'a' && *lexer->pos <= 'z') ||
          (*lexer->pos >= 'A' && *lexer->pos <= 'Z') ||
          (*lexer->pos >= '0' && *lexer->pos <= '9')) {
 
     if (lexer->pos - start > MAX_VAR_NAME_SIZE) {
-      token.type = ILLEGAL;
-      return token;
+      token->type = ILLEGAL;
+      return;
     }
-    token.literal[lexer->pos - start] = *lexer->pos;
+    token->literal[lexer->pos - start] = *lexer->pos;
     lexer->pos++;
-    token.type = VARIABLE;
+    token->type = VARIABLE;
   }
 
   lexer->pos--;
-  return token;
 }
 
 int lex(struct Lexer *lexer) {
   while (true) {
-    struct Token token = {0};
+    struct Token token = lexer->tokens[lexer->token_count];
     switch (*lexer->pos) {
     case '(':
       token.type = OPEN_PARAN;
@@ -88,7 +85,7 @@ int lex(struct Lexer *lexer) {
       token.type = _EOF;
       break;
     default:
-      token = nextToken(lexer);
+      nextToken(lexer, &token);
       break;
     }
 
@@ -122,18 +119,27 @@ int lex(struct Lexer *lexer) {
 }
 
 
+enum FnResultType {
+    RESULT_TOKEN,
+    RESULT_FUNCTION,
+};
+
+union FnResult {
+    struct Fn *function;
+    struct Token *token;
+};
+struct FnResultHolder {
+    enum FnResultType type;   
+    union FnResult *item;
+};
 
 
 struct Fn {
   int param_count ;
   struct Token *param;
-  struct Token *result;
+  struct FnResultHolder result;
 };
 
-
-struct Program {
-    struct Fn *head;
-};
 
 enum TokenType peek_token( struct Lexer *lexer , size_t i) {
    if (i < lexer->token_count) {
@@ -147,7 +153,7 @@ enum TokenType peek_token( struct Lexer *lexer , size_t i) {
 int main(void) {
 
   char *lambda = "($ d . d )";
-  struct Token tokens[MAX_TOKENS] = {0};
+  struct Token *tokens = malloc(sizeof(struct Token)*MAX_TOKENS);
   struct Lexer lexer = {
       .text = lambda, .pos = lambda, .tokens = tokens, .token_count = 0};
 
@@ -155,7 +161,7 @@ int main(void) {
     fprintf(stderr, "ERROR: Issue in compilation");
     return 1;
   }
-
+  printf("INFO: Completed lexing. Starting parsing\n");
   struct Fn function = {0};
 
   enum TokenType nextTokenType ;
@@ -170,6 +176,7 @@ int main(void) {
         // Variable - param
         nextTokenType = peek_token(&lexer, i +1);
         if ( nextTokenType != VARIABLE) {
+          printf("not variable\n");
           printf("%s\n", lexer.text); for (int j = 0 ; j < lexer.tokens[i+1].position ; ++j) printf("-"); printf("^\n");
           fprintf(stderr, "ERROR: expected VARIABLE, but found %s\n", tokenTypeLiterals[nextTokenType]);
           return 1;
@@ -189,12 +196,17 @@ int main(void) {
         // Variable - result
         nextTokenType = peek_token(&lexer, i +1);
         if ( nextTokenType != VARIABLE) {
+          printf("not variable\n");
           printf("%s\n", lexer.text); for (int j = 0 ; j < lexer.tokens[i+1].position ; ++j) printf("-"); printf("^\n");
           fprintf(stderr, "ERROR: expected VARIABLE, but found %s\n", tokenTypeLiterals[nextTokenType]);
           return 1;
         }
         i++;
-        function.result = &lexer.tokens[i];
+
+        union FnResult *result = malloc(100);
+        result->token = &lexer.tokens[i];
+        function.result.type = RESULT_TOKEN;
+        function.result.item =result;
 
         // ClosedParan
         nextTokenType = peek_token(&lexer, i +1);
@@ -211,37 +223,33 @@ int main(void) {
         return 1;
       }
     }
-
     else if (lexer.tokens[i].type == _EOF) {
-
     } else {
           printf("%s\n", lexer.text); for (int j = 0 ; j <= lexer.tokens[i].position ; ++j) printf("-"); printf("^\n");
-      fprintf(stderr, "ERROR: expected function call, but found %s\n",
-              tokenTypeLiterals[lexer.tokens[i].type]);
+      fprintf(stderr, "ERROR: expected function call, but found %s\n", tokenTypeLiterals[lexer.tokens[i].type]);
        return 1;
     }
     i++;
   }
 
-  //  struct Token arg = {
-  //    .type = VARIABLE,
-  //    .literal = "test"
-  //  };
-
-
-
-  printf("(λ %s . %s)\n", function.param->literal, function.result->literal);
-  struct Token arg = {
-      .type = VARIABLE,
-      .literal = "test"
-  };
-  struct Token result = {0};
-  if(!strcmp(function.result->literal, function.param->literal)) {
-    result.type = arg.type;
-    result.literal = arg.literal;
-  }
+  printf("INFO: Completed parsing. Interpreting the program now\n");
+  if (function.result.type == RESULT_TOKEN) {
+    struct Token *result = function.result.item->token;
+    printf("(λ %s . %s)\n", function.param->literal, result->literal);
+    struct Token arg = {
+        .type = VARIABLE,
+        .literal = "test"
+    };
+    struct Token result1 = {0};
+    if(!strcmp(result->literal, function.param->literal)) {
+      result1.type = arg.type;
+      result1.literal = arg.literal;
+    }
  
-  printf("((λ %s . %s) %s)\n", function.param->literal, function.result->literal, result.literal);
-  printf("Result: %s - %s\n", result.literal, tokenTypeLiterals[result.type]);
+    printf("((λ %s . %s) %s)\n", function.param->literal, result->literal, result1.literal);
+    printf("Result: %s - %s\n", result1.literal, tokenTypeLiterals[result1.type]);
+  } else {
+    assert(0 && "Not Implemented");
+  }
 
 }
