@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #define MAX_TOKENS 1000
 #define MAX_VAR_NAME_SIZE 100
@@ -117,86 +118,99 @@ int lex(struct Lexer *lexer) {
   return 0;
 }
 
+
+
+
+struct Fn {
+  int param_count ;
+  struct Token *param;
+  struct Token *result;
+};
+
+
+struct Program {
+    struct Fn *head;
+};
+
+enum TokenType peek_token( struct Lexer *lexer , size_t i) {
+   if (i < lexer->token_count) {
+      return lexer->tokens[i].type;
+   }
+
+  fprintf(stderr, "ERROR: index out of bound \n");
+  exit(1);
+}
+
 int main(void) {
 
-  char *lambda = "($ x . d   )";
+  char *lambda = "(($ d . d ) ($ a . a ))";
   struct Token tokens[MAX_TOKENS] = {0};
   struct Lexer lexer = {
       .text = lambda, .pos = lambda, .tokens = tokens, .token_count = 0};
 
-  lex(&lexer);
+  if(lex(&lexer)) {
+    fprintf(stderr, "ERROR: Issue in compilation");
+    return 1;
+  }
 
-  struct Fn {
-    struct Token param;
-    struct Token result;
-  };
+  struct Fn function = {0};
 
-  struct Fn functions[10] = {0};
-  size_t functions_count = 0;
-  for (size_t i = 0; i < lexer.token_count; ++i) {
+  enum TokenType nextTokenType ;
+  size_t i = 0;
+  while  (i < lexer.token_count) {
     if (lexer.tokens[i].type == OPEN_PARAN) {
-      if (i + 1 < lexer.token_count && lexer.tokens[i + 1].type == LAMBDA) {
-        // Variable - param
+      nextTokenType = peek_token(&lexer, i +1);
+      if ( nextTokenType == LAMBDA) {
         i++;
-        if (i + 1 >= lexer.token_count || lexer.tokens[i + 1].type == _EOF) {
-          fprintf(stderr, "ERROR: unexpected EOF 1\n");
-          return 1;
-        }
-        if (lexer.tokens[i + 1].type != VARIABLE) {
-          fprintf(stderr, "ERROR: expected variable , found %s\n",
-                  tokenTypeLiterals[lexer.tokens[i + 1].type]);
-          return 1;
-        }
+        // Handle Function Definition
 
-        functions[functions_count].param = lexer.tokens[i + 1];
+        // Variable - param
+        nextTokenType = peek_token(&lexer, i +1);
+        if ( nextTokenType != VARIABLE) {
+          fprintf(stderr, "ERROR: expected VARIABLE, but found %s\n", tokenTypeLiterals[nextTokenType]);
+          return 1;
+        }
+        i++;
+        function.param = &lexer.tokens[i];
 
         // DOT
+        nextTokenType = peek_token(&lexer, i +1);
+        if ( nextTokenType != DOT) {
+          fprintf(stderr, "ERROR: expected DOT, but found %s\n", tokenTypeLiterals[nextTokenType]);
+          return 1;
+        }
         i++;
-        if (i + 1 >= lexer.token_count || lexer.tokens[i + 1].type == _EOF) {
-          fprintf(stderr, "ERROR: unexpected EOF2\n");
-          return 1;
-        }
-        if (lexer.tokens[i + 1].type != DOT) {
-          fprintf(stderr, "ERROR: expected variable , found %s\n",
-                  tokenTypeLiterals[lexer.tokens[i + 1].type]);
-          return 1;
-        }
 
         // Variable - result
+        nextTokenType = peek_token(&lexer, i +1);
+        if ( nextTokenType != VARIABLE) {
+          fprintf(stderr, "ERROR: expected VARIABLE, but found %s\n", tokenTypeLiterals[nextTokenType]);
+          return 1;
+        }
         i++;
-        if (i + 1 >= lexer.token_count || lexer.tokens[i + 1].type == _EOF) {
-          fprintf(stderr, "ERROR: unexpected EOF3\n");
-          return 1;
-        }
-        if (lexer.tokens[i + 1].type != VARIABLE) {
-          fprintf(stderr, "ERROR: expected variable , found %s\n",
-                  tokenTypeLiterals[lexer.tokens[i + 1].type]);
-          return 1;
-        }
+        function.result = &lexer.tokens[i];
 
-        functions[functions_count].result = lexer.tokens[i + 1];
         // ClosedParan
-        i++;
-        if (i + 1 >= lexer.token_count || lexer.tokens[i + 1].type == _EOF) {
-          fprintf(stderr, "ERROR: unexpected EOF3\n");
-          return 1;
-        }
-        if (lexer.tokens[i + 1].type != CLOSE_PARAN) {
-          fprintf(stderr, "ERROR: expected close Param , found %s\n",
-                  tokenTypeLiterals[lexer.tokens[i + 1].type]);
+        nextTokenType = peek_token(&lexer, i +1);
+        if ( nextTokenType != CLOSE_PARAN) {
+          fprintf(stderr, "ERROR: expected CLOSE_PARAN, but found %s\n", tokenTypeLiterals[nextTokenType]);
           return 1;
         }
         i++;
+      } else {
+        // Handle Function execution 
+        assert(0 && "Function execution not Implemented");
       }
     }
 
     else if (lexer.tokens[i].type == _EOF) {
 
     } else {
-      fprintf(stderr, "ERROR: expected function call , found %s\n",
+      fprintf(stderr, "ERROR: expected function call, but found %s\n",
               tokenTypeLiterals[lexer.tokens[i].type]);
-      //  return 1;
+       return 1;
     }
+    i++;
   }
 
   //  struct Token arg = {
@@ -204,6 +218,20 @@ int main(void) {
   //    .literal = "test"
   //  };
 
-  struct Fn fn1 = functions[0];
-  printf("(λ %s . %s)", fn1.param.literal, fn1.result.literal);
+
+
+  printf("(λ %s . %s)\n", function.param->literal, function.result->literal);
+  struct Token arg = {
+      .type = VARIABLE,
+      .literal = "test"
+  };
+  struct Token result = {0};
+  if(!strcmp(function.result->literal, function.param->literal)) {
+    result.type = arg.type;
+    result.literal = arg.literal;
+  }
+ 
+  printf("((λ %s . %s) %s)\n", function.param->literal, function.result->literal, result.literal);
+  printf("Result: %s - %s\n", result.literal, tokenTypeLiterals[result.type]);
+
 }

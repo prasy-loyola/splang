@@ -1,4 +1,4 @@
-vim.cmd("set makeprg=./build.sh\\ &&\\ ./main");
+vim.opt.makeprg = "./build.sh && ./main"
 
 local wk = require('which-key')
 wk.register(
