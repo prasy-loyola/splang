@@ -119,6 +119,29 @@ int lex(struct Lexer *lexer) {
 }
 
 
+
+enum BlockType {
+  BLOCK_FUNCTION,
+  BLOCK_APPLICATION
+};
+
+struct FnApplication {
+  struct Fn *function;
+  struct Token *params;
+  int params_count;
+};
+
+union BlockElem {
+  struct Fn *function;
+  struct FnApplication *application;
+
+};
+
+struct Block {
+  enum BlockType type;
+  union BlockElem elem;
+};
+
 enum FnResultType {
     RESULT_TOKEN,
     RESULT_FUNCTION,
@@ -152,7 +175,7 @@ enum TokenType peek_token( struct Lexer *lexer , size_t i) {
 
 int main(void) {
 
-  char *lambda = "($ d . d )";
+  char *lambda = "( ($ d . d ) test )";
   struct Token *tokens = malloc(sizeof(struct Token)*MAX_TOKENS);
   struct Lexer lexer = {
       .text = lambda, .pos = lambda, .tokens = tokens, .token_count = 0};
@@ -162,7 +185,7 @@ int main(void) {
     return 1;
   }
   printf("INFO: Completed lexing. Starting parsing\n");
-  struct Fn function = {0};
+  struct Block block = {0};
 
   enum TokenType nextTokenType ;
   size_t i = 0;
@@ -170,19 +193,25 @@ int main(void) {
     if (lexer.tokens[i].type == OPEN_PARAN) {
       nextTokenType = peek_token(&lexer, i +1);
       if ( nextTokenType == LAMBDA) {
+        if(block.type != BLOCK_APPLICATION) {
+          block.type = BLOCK_FUNCTION;
+        }
         i++;
         // Handle Function Definition
 
         // Variable - param
         nextTokenType = peek_token(&lexer, i +1);
         if ( nextTokenType != VARIABLE) {
-          printf("not variable\n");
           printf("%s\n", lexer.text); for (int j = 0 ; j < lexer.tokens[i+1].position ; ++j) printf("-"); printf("^\n");
           fprintf(stderr, "ERROR: expected VARIABLE, but found %s\n", tokenTypeLiterals[nextTokenType]);
           return 1;
         }
         i++;
-        function.param = &lexer.tokens[i];
+
+        struct Fn *function = malloc(sizeof (struct Fn));
+
+        function->param = &lexer.tokens[i];
+        function->param_count++;
 
         // DOT
         nextTokenType = peek_token(&lexer, i +1);
@@ -196,7 +225,6 @@ int main(void) {
         // Variable - result
         nextTokenType = peek_token(&lexer, i +1);
         if ( nextTokenType != VARIABLE) {
-          printf("not variable\n");
           printf("%s\n", lexer.text); for (int j = 0 ; j < lexer.tokens[i+1].position ; ++j) printf("-"); printf("^\n");
           fprintf(stderr, "ERROR: expected VARIABLE, but found %s\n", tokenTypeLiterals[nextTokenType]);
           return 1;
@@ -205,8 +233,15 @@ int main(void) {
 
         union FnResult *result = malloc(100);
         result->token = &lexer.tokens[i];
-        function.result.type = RESULT_TOKEN;
-        function.result.item =result;
+        function->result.type = RESULT_TOKEN;
+        function->result.item =result;
+
+        if(block.type == BLOCK_APPLICATION && block.elem.application) {
+          block.elem.application->function = function;
+        } else {
+          block.elem.function = function;
+        }
+
 
         // ClosedParan
         nextTokenType = peek_token(&lexer, i +1);
@@ -217,14 +252,26 @@ int main(void) {
         }
         i++;
       } else {
+        block.type = BLOCK_APPLICATION;
         // Handle Function execution 
-        printf("Parsing at %d\n", lexer.tokens[i].position);
-        //assert(0 && "Function execution not Implemented\n");
-        return 1;
+        //printf("%s\n", lexer.text); for (int j = 0 ; j < lexer.tokens[i].position ; ++j) printf("-"); printf("^\n");
+        struct FnApplication *application = malloc(sizeof(struct FnApplication));
+        block.elem.application = application;
       }
     }
     else if (lexer.tokens[i].type == _EOF) {
-    } else {
+      if(block.type == BLOCK_APPLICATION && block.elem.application && !block.elem.application->params) {
+        fprintf(stderr, "ERROR: expected function call, but found %s\n", tokenTypeLiterals[lexer.tokens[i].type]);
+      }
+    } else if (lexer.tokens[i].type == VARIABLE) {
+       if(block.type == BLOCK_APPLICATION && block.elem.application ) {
+          block.elem.application->params = &lexer.tokens[i];
+          block.elem.application->params_count++;
+       }
+    }
+    else if (lexer.tokens[i].type == CLOSE_PARAN) {
+    }
+    else {
           printf("%s\n", lexer.text); for (int j = 0 ; j <= lexer.tokens[i].position ; ++j) printf("-"); printf("^\n");
       fprintf(stderr, "ERROR: expected function call, but found %s\n", tokenTypeLiterals[lexer.tokens[i].type]);
        return 1;
@@ -232,24 +279,46 @@ int main(void) {
     i++;
   }
 
+
   printf("INFO: Completed parsing. Interpreting the program now\n");
-  if (function.result.type == RESULT_TOKEN) {
+  if (block.type == BLOCK_FUNCTION) {
+    struct Fn function = *block.elem.function;
     struct Token *result = function.result.item->token;
     printf("(λ %s . %s)\n", function.param->literal, result->literal);
-    struct Token arg = {
-        .type = VARIABLE,
-        .literal = "test"
-    };
-    struct Token result1 = {0};
-    if(!strcmp(result->literal, function.param->literal)) {
-      result1.type = arg.type;
-      result1.literal = arg.literal;
-    }
- 
-    printf("((λ %s . %s) %s)\n", function.param->literal, result->literal, result1.literal);
-    printf("Result: %s - %s\n", result1.literal, tokenTypeLiterals[result1.type]);
   } else {
-    assert(0 && "Not Implemented");
+    struct Token arg = *block.elem.application->params; 
+    struct Fn function = *block.elem.application->function;
+    struct FnResultHolder result = function.result;
+    if (result.type == RESULT_TOKEN)  {
+      if (strcmp(result.item->token->literal, function.param->literal) == 0) {
+        printf("Result: %s - %s\n", arg.literal, tokenTypeLiterals[arg.type]);
+      } else {
+        struct Fn result_function = *function.result.item->function; 
+        printf("(λ %s . %s)\n", result_function.param->literal, result_function.result.item->token->literal);
+        assert(0 && "UNKOWN TOKEN NOT IMPLEMENTED");
+      }
+    } else {
+        assert(0 && "RESULT_FUNCTION NOT IMPLEMENTED");
+    }
+    
   }
+  //if (function.result.type == RESULT_TOKEN) {
+  //  struct Token *result = function.result.item->token;
+  //  printf("(λ %s . %s)\n", function.param->literal, result->literal);
+  //  struct Token arg = {
+  //      .type = VARIABLE,
+  //      .literal = "test"
+  //  };
+  //  struct Token result1 = {0};
+  //  if(!strcmp(result->literal, function.param->literal)) {
+  //    result1.type = arg.type;
+  //    result1.literal = arg.literal;
+  //  }
+ 
+  //  printf("((λ %s . %s) %s)\n", function.param->literal, result->literal, result1.literal);
+  //  printf("Result: %s - %s\n", result1.literal, tokenTypeLiterals[result1.type]);
+  //} else {
+  //  assert(0 && "Not Implemented");
+  //}
 
 }
