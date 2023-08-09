@@ -14,6 +14,7 @@ const (
     Minus
     Divide
     Subtract
+    Dot
     EOF
 )
 
@@ -65,6 +66,14 @@ func tokenize(lexer *Lexer) error {
         }
         lexer.tokens = append(lexer.tokens, token)
         lexer.position++
+    } else if char == '.' {
+        token := Token {
+            tokenType: Dot,
+            pos: lexer.position,
+            literal: ".",
+        }
+        lexer.tokens = append(lexer.tokens, token)
+        lexer.position++
     } else {
         token := Token {
             tokenType: Illegal,
@@ -84,12 +93,9 @@ type Interpreter struct {
 
 func (i *Interpreter) interpret(lexer *Lexer) error {
 
-    fmt.Println("Got lexer",lexer)
-    fmt.Println("Got tokens",lexer.tokens)
 
     for _ , token := range lexer.tokens {
 
-        fmt.Println("Got token", token)
         if token.tokenType == Number {
             num, err := strconv.Atoi(token.literal)
             if err != nil {
@@ -97,7 +103,6 @@ func (i *Interpreter) interpret(lexer *Lexer) error {
                 return err
             }
             i.stack = append(i.stack, num)
-            fmt.Println("After adding number to stack", i.stack)
         } else if token.tokenType == Plus {
 
             if len(i.stack) < 2 {
@@ -107,7 +112,14 @@ func (i *Interpreter) interpret(lexer *Lexer) error {
             a , b := i.stack[len(i.stack)-1] , i.stack[len(i.stack)-2]
             i.stack = i.stack[:len(i.stack)-2]
             i.stack = append(i.stack, a + b)
-            fmt.Println(i.stack)
+        } else if token.tokenType == Dot {
+
+            if len(i.stack) < 1 {
+                errors.New("Too little items on the stack. Need at least two for plus operator")
+            }
+            a := i.stack[len(i.stack)-1]
+            i.stack = i.stack[:len(i.stack)-1]
+            fmt.Println(a)
         } else {
 
             fmt.Println(token)
@@ -121,12 +133,10 @@ func (i *Interpreter) interpret(lexer *Lexer) error {
 
 func main() {
     lexer := Lexer { 
-        text : " 10 20 + " ,
+        text : "10 20 + 100 + ." ,
         position : 0,
         tokens: []Token{},
     }
-
-
 
     err := tokenize(&lexer)
     if err != nil {
@@ -145,5 +155,8 @@ func main() {
         fmt.Printf("err: %v\n", err)
         return
     }
-    fmt.Println(interpreter)
+
+    if len(interpreter.stack) > 0 {
+        fmt.Println("ERROR: elements still left in stack", interpreter.stack)
+    }
 }
