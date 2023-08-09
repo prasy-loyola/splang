@@ -189,25 +189,23 @@ func main() {
 		tokens:   []Token{},
 	}
 
-	err := lexer.tokenize()
-	if err != nil {
+	if err := lexer.tokenize(); err != nil {
 		fmt.Println("inside error", lexer)
 		fmt.Printf("err: %v\n", err)
 		return
-	}
+	} else {
+		interpreter := Interpreter{
+			stack: []int{},
+		}
 
-	interpreter := Interpreter{
-		stack: []int{},
-	}
-	err = interpreter.interpret(&lexer)
+		if err = interpreter.interpret(&lexer); err != nil {
+			fmt.Println("inside error", lexer)
+			fmt.Printf("err: %v\n", err)
+			return
+		}
 
-	if err != nil {
-		fmt.Println("inside error", lexer)
-		fmt.Printf("err: %v\n", err)
-		return
-	}
-
-	if len(interpreter.stack) > 0 {
-		fmt.Println("ERROR: elements still left in stack", interpreter.stack)
+		if len(interpreter.stack) > 0 {
+			fmt.Println("ERROR: elements still left in stack", interpreter.stack)
+		}
 	}
 }
