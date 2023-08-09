@@ -11,12 +11,15 @@ type TokenType int32
 const (
 	Illegal TokenType = iota
 	Number
+	StringLiteral
 	Plus
 	Minus
 	ForwardSlash
 	Asterisk
 	Dot
+	Dollar
 	EOF
+	TokenTypeCount
 )
 
 type Token struct {
@@ -31,11 +34,21 @@ type Lexer struct {
 	tokens   []Token
 }
 
+func isAlphaCharacter(char byte) bool {
+	return (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z')
+}
+func isNumber(char byte) bool {
+	return char >= '0' && char <= '9'
+}
 func (lexer *Lexer) tokenize() error {
 	if lexer.position >= len(lexer.text) {
 		return nil
 	}
 	char := lexer.text[lexer.position]
+
+	if TokenTypeCount != 10 {
+		return errors.New(fmt.Sprint("Expected number of TokenTypes is 10 , but found ", TokenTypeCount))
+	}
 	if char == 0 {
 		token := Token{
 			tokenType: EOF,
@@ -46,13 +59,25 @@ func (lexer *Lexer) tokenize() error {
 		return nil
 	} else if char == ' ' || char == '\n' || char == '\r' {
 		lexer.position++
-	} else if char >= '0' && char <= '9' {
+	} else if isNumber(char) {
 		token := Token{
 			tokenType: Number,
 			pos:       lexer.position,
 			literal:   "",
 		}
-		for ; lexer.text[lexer.position] >= '0' && lexer.text[lexer.position] <= '9'; lexer.position++ {
+		for ; isNumber(lexer.text[lexer.position]); lexer.position++ {
+			char = lexer.text[lexer.position]
+			token.literal = token.literal + string(char)
+		}
+
+		lexer.tokens = append(lexer.tokens, token)
+	} else if isAlphaCharacter(char) {
+		token := Token{
+			tokenType: StringLiteral,
+			pos:       lexer.position,
+			literal:   "",
+		}
+		for ; isAlphaCharacter(lexer.text[lexer.position]); lexer.position++ {
 			char = lexer.text[lexer.position]
 			token.literal = token.literal + string(char)
 
@@ -99,6 +124,14 @@ func (lexer *Lexer) tokenize() error {
 		}
 		lexer.tokens = append(lexer.tokens, token)
 		lexer.position++
+	} else if char == '$' {
+		token := Token{
+			tokenType: Dollar,
+			pos:       lexer.position,
+			literal:   "$",
+		}
+		lexer.tokens = append(lexer.tokens, token)
+		lexer.position++
 	} else {
 		token := Token{
 			tokenType: Illegal,
@@ -116,55 +149,80 @@ type Interpreter struct {
 	stack []int
 }
 
-func (i *Interpreter) interpret(lexer *Lexer) error {
+func (itp *Interpreter) interpret(lexer *Lexer) error {
 
 	for _, token := range lexer.tokens {
 
+		if TokenTypeCount != 10 {
+			return errors.New(fmt.Sprint("Expected number of TokenTypes is 10 , but found ", TokenTypeCount))
+		}
 		if token.tokenType == Number {
 			if num, err := strconv.Atoi(token.literal); err != nil {
 				return err
 			} else {
-			    i.stack = append(i.stack, num)
+				itp.stack = append(itp.stack, num)
+			}
+		} else if token.tokenType == StringLiteral {
+
+            for i := len(token.literal) - 1 ; i >=0 ; i-- {
+				itp.stack = append(itp.stack, int(token.literal[i]))
             }
+			itp.stack = append(itp.stack, len(token.literal))
 		} else if token.tokenType == Plus {
 
-			if len(i.stack) < 2 {
+			if len(itp.stack) < 2 {
 				return errors.New("Too little items on the stack. Need at least two for addition")
 			}
-			a, b := i.stack[len(i.stack)-2], i.stack[len(i.stack)-1]
-			i.stack = i.stack[:len(i.stack)-2]
-			i.stack = append(i.stack, a+b)
+			a, b := itp.stack[len(itp.stack)-2], itp.stack[len(itp.stack)-1]
+			itp.stack = itp.stack[:len(itp.stack)-2]
+			itp.stack = append(itp.stack, a+b)
 		} else if token.tokenType == Minus {
 
-			if len(i.stack) < 2 {
+			if len(itp.stack) < 2 {
 				return errors.New("Too little items on the stack. Need at least two for subtraction")
 			}
-			a, b := i.stack[len(i.stack)-2], i.stack[len(i.stack)-1]
-			i.stack = i.stack[:len(i.stack)-2]
-			i.stack = append(i.stack, a-b)
+			a, b := itp.stack[len(itp.stack)-2], itp.stack[len(itp.stack)-1]
+			itp.stack = itp.stack[:len(itp.stack)-2]
+			itp.stack = append(itp.stack, a-b)
 		} else if token.tokenType == ForwardSlash {
-			if len(i.stack) < 2 {
+			if len(itp.stack) < 2 {
 				return errors.New("Too little items on the stack. Need at least two for division")
 			}
-			a, b := i.stack[len(i.stack)-2], i.stack[len(i.stack)-1]
-			i.stack = i.stack[:len(i.stack)-2]
-			i.stack = append(i.stack, a/b)
+			a, b := itp.stack[len(itp.stack)-2], itp.stack[len(itp.stack)-1]
+			itp.stack = itp.stack[:len(itp.stack)-2]
+			itp.stack = append(itp.stack, a/b)
 		} else if token.tokenType == Asterisk {
-			if len(i.stack) < 2 {
+			if len(itp.stack) < 2 {
 				return errors.New("Too little items on the stack. Need at least two for multiplication")
 			}
-			a, b := i.stack[len(i.stack)-2], i.stack[len(i.stack)-1]
-			i.stack = i.stack[:len(i.stack)-2]
-			i.stack = append(i.stack, a*b)
+			a, b := itp.stack[len(itp.stack)-2], itp.stack[len(itp.stack)-1]
+			itp.stack = itp.stack[:len(itp.stack)-2]
+			itp.stack = append(itp.stack, a*b)
 		} else if token.tokenType == Dot {
-			if len(i.stack) < 1 {
-			    return errors.New("Too little items on the stack. Need at least one item for print")
+			if len(itp.stack) < 1 {
+				return errors.New("Too little items on the stack. Need at least one item for print")
 			}
-			a := i.stack[len(i.stack)-1]
-			i.stack = i.stack[:len(i.stack)-1]
+			a := itp.stack[len(itp.stack)-1]
+			itp.stack = itp.stack[:len(itp.stack)-1]
 			fmt.Println(a)
+		} else if token.tokenType == Dollar {
+			if len(itp.stack) < 1 {
+				return errors.New("Too little items on the stack. Need the number of items to print")
+			}
+			count := itp.stack[len(itp.stack)-1]
+			itp.stack = itp.stack[:len(itp.stack)-1]
+
+			if len(itp.stack) < count {
+				return errors.New(fmt.Sprintf("Expected %d items on stack, but found only", count, len(itp.stack)))
+
+			}
+			for i := 0; i < count; i++ {
+				num := itp.stack[len(itp.stack)-1]
+				itp.stack = itp.stack[:len(itp.stack)-1]
+				fmt.Print(string(num))
+			}
 		} else {
-            return errors.New("Unsupported token " + fmt.Sprint(token))
+			return errors.New("Unsupported token " + fmt.Sprint(token))
 		}
 
 	}
@@ -173,11 +231,7 @@ func (i *Interpreter) interpret(lexer *Lexer) error {
 
 func main() {
 	lexer := Lexer{
-		text:     `10 20 + 
-                    100 - 
-                    10 * 
-                    10 / 
-                    . ` ,
+		text:     `HelloWorld $ `,
 		position: 0,
 		tokens:   []Token{},
 	}
