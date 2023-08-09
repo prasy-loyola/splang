@@ -213,7 +213,7 @@ func (itp *Interpreter) interpret(lexer *Lexer) error {
 			itp.stack = itp.stack[:len(itp.stack)-1]
 
 			if len(itp.stack) < count {
-				return errors.New(fmt.Sprintf("Expected %d items on stack, but found only", count, len(itp.stack)))
+				return errors.New(fmt.Sprintf("Expected %d items on stack, but found only %d items", count, len(itp.stack)))
 
 			}
 			for i := 0; i < count; i++ {
@@ -221,6 +221,7 @@ func (itp *Interpreter) interpret(lexer *Lexer) error {
 				itp.stack = itp.stack[:len(itp.stack)-1]
 				fmt.Print(string(num))
 			}
+            fmt.Println()
 		} else {
 			return errors.New("Unsupported token " + fmt.Sprint(token))
 		}
@@ -231,7 +232,7 @@ func (itp *Interpreter) interpret(lexer *Lexer) error {
 
 func main() {
 	lexer := Lexer{
-		text:     `HelloWorld $ `,
+		text:     `HelloWorld $ 10 10 * .  percent $ works $`,
 		position: 0,
 		tokens:   []Token{},
 	}
