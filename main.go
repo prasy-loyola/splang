@@ -18,14 +18,15 @@ const (
 	Asterisk
 	Dot
 	Dollar
+	AtTheRate
 	EOF
 	TokenTypeCount
 )
 
 type Token struct {
-	typ TokenType
-	literal   string
-	pos       int
+	typ     TokenType
+	literal string
+	pos     int
 }
 
 type Lexer struct {
@@ -46,14 +47,14 @@ func (lexer *Lexer) tokenize() error {
 	}
 	char := lexer.text[lexer.position]
 
-	if TokenTypeCount != 10 {
-		return errors.New(fmt.Sprint("Expected number of TokenTypes is 10 , but found ", TokenTypeCount))
+	if TokenTypeCount != 11 {
+		return errors.New(fmt.Sprint("Expected number of TokenTypes is 11 , but found ", TokenTypeCount))
 	}
 	if char == 0 {
 		token := Token{
-			typ: EOF,
-			pos:       lexer.position,
-			literal:   "",
+			typ:     EOF,
+			pos:     lexer.position,
+			literal: "",
 		}
 		lexer.tokens = append(lexer.tokens, token)
 		return nil
@@ -61,9 +62,9 @@ func (lexer *Lexer) tokenize() error {
 		lexer.position++
 	} else if isNumber(char) {
 		token := Token{
-			typ: Number,
-			pos:       lexer.position,
-			literal:   "",
+			typ:     Number,
+			pos:     lexer.position,
+			literal: "",
 		}
 		for ; lexer.position < len(lexer.text) && isNumber(lexer.text[lexer.position]); lexer.position++ {
 			char = lexer.text[lexer.position]
@@ -73,70 +74,71 @@ func (lexer *Lexer) tokenize() error {
 		lexer.tokens = append(lexer.tokens, token)
 	} else if isAlphaCharacter(char) {
 		token := Token{
-			typ: StringLiteral,
-			pos:       lexer.position,
-			literal:   "",
+			typ:     StringLiteral,
+			pos:     lexer.position,
+			literal: "",
 		}
 		for ; lexer.position < len(lexer.text) && isAlphaCharacter(lexer.text[lexer.position]); lexer.position++ {
 			char = lexer.text[lexer.position]
 			token.literal = token.literal + string(char)
 
 		}
-
 		lexer.tokens = append(lexer.tokens, token)
 	} else if char == '+' {
-		token := Token{
-			typ: Plus,
-			pos:       lexer.position,
-			literal:   "+",
-		}
-		lexer.tokens = append(lexer.tokens, token)
+		lexer.tokens = append(lexer.tokens, Token{
+			typ:     Plus,
+			pos:     lexer.position,
+			literal: string(char),
+		})
 		lexer.position++
 	} else if char == '-' {
-		token := Token{
-			typ: Minus,
-			pos:       lexer.position,
-			literal:   "-",
-		}
-		lexer.tokens = append(lexer.tokens, token)
+		lexer.tokens = append(lexer.tokens, Token{
+			typ:     Minus,
+			pos:     lexer.position,
+			literal: string(char),
+		})
 		lexer.position++
 	} else if char == '*' {
-		token := Token{
-			typ: Asterisk,
-			pos:       lexer.position,
-			literal:   "*",
-		}
-		lexer.tokens = append(lexer.tokens, token)
+		lexer.tokens = append(lexer.tokens, Token{
+			typ:     Asterisk,
+			pos:     lexer.position,
+			literal: string(char),
+		})
 		lexer.position++
 	} else if char == '/' {
-		token := Token{
-			typ: ForwardSlash,
-			pos:       lexer.position,
-			literal:   "/",
-		}
-		lexer.tokens = append(lexer.tokens, token)
+		lexer.tokens = append(lexer.tokens, Token{
+			typ:     ForwardSlash,
+			pos:     lexer.position,
+			literal: string(char),
+		})
 		lexer.position++
 	} else if char == '.' {
-		token := Token{
-			typ: Dot,
-			pos:       lexer.position,
-			literal:   ".",
-		}
-		lexer.tokens = append(lexer.tokens, token)
+		lexer.tokens = append(lexer.tokens, Token{
+			typ:     Dot,
+			pos:     lexer.position,
+			literal: string(char),
+		})
+		lexer.position++
+	} else if char == '@' {
+		lexer.tokens = append(lexer.tokens, Token{
+			typ:     AtTheRate,
+			pos:     lexer.position,
+			literal: string(char),
+		})
 		lexer.position++
 	} else if char == '$' {
 		token := Token{
-			typ: Dollar,
-			pos:       lexer.position,
-			literal:   "$",
+			typ:     Dollar,
+			pos:     lexer.position,
+			literal: "$",
 		}
 		lexer.tokens = append(lexer.tokens, token)
 		lexer.position++
 	} else {
 		token := Token{
-			typ: Illegal,
-			pos:       lexer.position,
-			literal:   string(char),
+			typ:     Illegal,
+			pos:     lexer.position,
+			literal: string(char),
 		}
 		lexer.tokens = append(lexer.tokens, token)
 		return errors.New("Illegal token " + string(char))
@@ -153,8 +155,8 @@ func (itp *Interpreter) interpret(instructions *[]Instruction) error {
 
 	for _, instr := range *instructions {
 
-		if TokenTypeCount != 10 {
-			return errors.New(fmt.Sprint("Expected number of TokenTypes is 10 , but found ", TokenTypeCount))
+		if InstructionTypeCount != 8 {
+			return errors.New(fmt.Sprint("Expected number of InstructionType is 8 , but found ", InstructionTypeCount))
 		}
 		if instr.typ == PushInt {
 			itp.stack = append(itp.stack, instr.operand)
@@ -194,6 +196,12 @@ func (itp *Interpreter) interpret(instructions *[]Instruction) error {
 			a := itp.stack[len(itp.stack)-1]
 			itp.stack = itp.stack[:len(itp.stack)-1]
 			fmt.Println(a)
+		} else if instr.typ == IntrinsicDup {
+			if len(itp.stack) < 1 {
+				return errors.New("Too little items on the stack. Need at least one item for Dup")
+			}
+			a := itp.stack[len(itp.stack)-1]
+			itp.stack = append(itp.stack, a)
 		} else if instr.typ == IntrinsicPrintStr {
 			if len(itp.stack) < 1 {
 				return errors.New("Too little items on the stack. Need the number of items to print")
@@ -210,7 +218,7 @@ func (itp *Interpreter) interpret(instructions *[]Instruction) error {
 				itp.stack = itp.stack[:len(itp.stack)-1]
 				fmt.Print(string(num))
 			}
-            fmt.Println()
+			fmt.Println()
 		} else {
 			return errors.New("Unsupported token " + fmt.Sprint(instr))
 		}
@@ -219,74 +227,75 @@ func (itp *Interpreter) interpret(instructions *[]Instruction) error {
 	return nil
 }
 
-type InstructionType int 
+type InstructionType int
 
 const (
+	IntrinsicPlus InstructionType = iota
+	IntrinsicSubract
+	IntrinsicDivide
+	IntrinsicMultiplication
+	IntrinsicPrintInt
+	IntrinsicPrintStr
+	IntrinsicDup
 
-    IntrinsicPlus InstructionType = iota
-    IntrinsicSubract
-    IntrinsicDivide
-    IntrinsicMultiplication
-    IntrinsicPrintInt
-    IntrinsicPrintStr
+	PushInt
 
-    PushInt
-
-    InstructionTypeCount
+	InstructionTypeCount
 )
 
 type Instruction struct {
-    typ InstructionType
-    operand int
+	typ     InstructionType
+	operand int
 }
 
 type Parser struct {
-    instructions []Instruction
+	instructions []Instruction
 }
-
 
 func (parser *Parser) parse(lexer *Lexer) error {
 	for _, token := range lexer.tokens {
-        
-		if TokenTypeCount != 10 {
+
+		if TokenTypeCount != 11 {
 			return errors.New(fmt.Sprint("Expected number of TokenTypes is 10 , but found ", TokenTypeCount))
 		}
 		if token.typ == Number {
 			if num, err := strconv.Atoi(token.literal); err != nil {
 				return err
 			} else {
-                parser.instructions = append(parser.instructions, Instruction{ typ : PushInt,  operand: num} )
+				parser.instructions = append(parser.instructions, Instruction{typ: PushInt, operand: num})
 			}
 		} else if token.typ == StringLiteral {
-            for i := len(token.literal) - 1 ; i >=0 ; i-- {
-                parser.instructions = append(parser.instructions, Instruction{ typ : PushInt,  operand: int(token.literal[i])} )
-            }
-            parser.instructions = append(parser.instructions, Instruction{ typ : PushInt,  operand: len(token.literal)} )
+			for i := len(token.literal) - 1; i >= 0; i-- {
+				parser.instructions = append(parser.instructions, Instruction{typ: PushInt, operand: int(token.literal[i])})
+			}
+			parser.instructions = append(parser.instructions, Instruction{typ: PushInt, operand: len(token.literal)})
 		} else if token.typ == Plus {
-            parser.instructions = append(parser.instructions, Instruction{ typ : IntrinsicPlus,  operand: 0} )
+			parser.instructions = append(parser.instructions, Instruction{typ: IntrinsicPlus, operand: 0})
 		} else if token.typ == Minus {
-            parser.instructions = append(parser.instructions, Instruction{ typ : IntrinsicSubract,  operand: 0} )
+			parser.instructions = append(parser.instructions, Instruction{typ: IntrinsicSubract, operand: 0})
 		} else if token.typ == ForwardSlash {
-            parser.instructions = append(parser.instructions, Instruction{ typ : IntrinsicDivide,  operand: 0} )
+			parser.instructions = append(parser.instructions, Instruction{typ: IntrinsicDivide, operand: 0})
 		} else if token.typ == Asterisk {
-            parser.instructions = append(parser.instructions, Instruction{ typ : IntrinsicMultiplication,  operand: 0} )
+			parser.instructions = append(parser.instructions, Instruction{typ: IntrinsicMultiplication, operand: 0})
 		} else if token.typ == Dot {
-            parser.instructions = append(parser.instructions, Instruction{ typ : IntrinsicPrintInt,  operand: 0} )
+			parser.instructions = append(parser.instructions, Instruction{typ: IntrinsicPrintInt, operand: 0})
+		} else if token.typ == AtTheRate {
+			parser.instructions = append(parser.instructions, Instruction{typ: IntrinsicDup, operand: 0})
 		} else if token.typ == Dollar {
-            parser.instructions = append(parser.instructions, Instruction{ typ : IntrinsicPrintStr,  operand: 0} )
+			parser.instructions = append(parser.instructions, Instruction{typ: IntrinsicPrintStr, operand: 0})
 		} else {
 			return errors.New("Unsupported token " + fmt.Sprint(token))
 		}
 
 	}
 
-    return nil
+	return nil
 
 }
 
 func main() {
 	lexer := Lexer{
-		text:     `HelloWorld $ 10 10 * . percent $ works $`,
+		text:     `HelloWorld $ 10 @ * . percent $ works $`,
 		position: 0,
 		tokens:   []Token{},
 	}
