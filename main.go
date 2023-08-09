@@ -31,7 +31,7 @@ type Lexer struct {
 	tokens   []Token
 }
 
-func tokenize(lexer *Lexer) error {
+func (lexer *Lexer) tokenize() error {
 	if lexer.position >= len(lexer.text) {
 		return nil
 	}
@@ -109,7 +109,7 @@ func tokenize(lexer *Lexer) error {
 		return errors.New("Illegal token " + string(char))
 	}
 	//fmt.Println(lexer)
-	return tokenize(lexer)
+	return lexer.tokenize()
 }
 
 type Interpreter struct {
@@ -189,7 +189,7 @@ func main() {
 		tokens:   []Token{},
 	}
 
-	err := tokenize(&lexer)
+	err := lexer.tokenize()
 	if err != nil {
 		fmt.Println("inside error", lexer)
 		fmt.Printf("err: %v\n", err)
