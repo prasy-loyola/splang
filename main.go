@@ -44,7 +44,7 @@ func (lexer *Lexer) tokenize() error {
 		}
 		lexer.tokens = append(lexer.tokens, token)
 		return nil
-	} else if char == ' ' {
+	} else if char == ' ' || char == '\n' || char == '\r' {
 		lexer.position++
 	} else if char >= '0' && char <= '9' {
 		token := Token{
@@ -175,7 +175,11 @@ func (i *Interpreter) interpret(lexer *Lexer) error {
 
 func main() {
 	lexer := Lexer{
-		text:     "10 20 + 100 - 10 * 10 / . ",
+		text:     `10 20 + 
+                    100 - 
+                    10 * 
+                    10 / 
+                    . `,
 		position: 0,
 		tokens:   []Token{},
 	}
