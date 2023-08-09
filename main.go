@@ -121,52 +121,44 @@ func (i *Interpreter) interpret(lexer *Lexer) error {
 	for _, token := range lexer.tokens {
 
 		if token.tokenType == Number {
-			num, err := strconv.Atoi(token.literal)
-			if err != nil {
-				fmt.Println(err)
+			if num, err := strconv.Atoi(token.literal); err != nil {
 				return err
-			}
-			i.stack = append(i.stack, num)
+			} else {
+			    i.stack = append(i.stack, num)
+            }
 		} else if token.tokenType == Plus {
 
 			if len(i.stack) < 2 {
-				errors.New("Too little items on the stack. Need at least two for plus operator")
+				return errors.New("Too little items on the stack. Need at least two for addition")
 			}
-
 			a, b := i.stack[len(i.stack)-2], i.stack[len(i.stack)-1]
 			i.stack = i.stack[:len(i.stack)-2]
 			i.stack = append(i.stack, a+b)
 		} else if token.tokenType == Minus {
 
 			if len(i.stack) < 2 {
-				errors.New("Too little items on the stack. Need at least two for plus operator")
+				return errors.New("Too little items on the stack. Need at least two for subtraction")
 			}
-
 			a, b := i.stack[len(i.stack)-2], i.stack[len(i.stack)-1]
 			i.stack = i.stack[:len(i.stack)-2]
 			i.stack = append(i.stack, a-b)
 		} else if token.tokenType == ForwardSlash {
-
 			if len(i.stack) < 2 {
-				errors.New("Too little items on the stack. Need at least two for plus operator")
+				return errors.New("Too little items on the stack. Need at least two for division")
 			}
-
 			a, b := i.stack[len(i.stack)-2], i.stack[len(i.stack)-1]
 			i.stack = i.stack[:len(i.stack)-2]
 			i.stack = append(i.stack, a/b)
 		} else if token.tokenType == Asterisk {
-
 			if len(i.stack) < 2 {
-				errors.New("Too little items on the stack. Need at least two for plus operator")
+				return errors.New("Too little items on the stack. Need at least two for multiplication")
 			}
-
 			a, b := i.stack[len(i.stack)-2], i.stack[len(i.stack)-1]
 			i.stack = i.stack[:len(i.stack)-2]
 			i.stack = append(i.stack, a*b)
 		} else if token.tokenType == Dot {
-
 			if len(i.stack) < 1 {
-				errors.New("Too little items on the stack. Need at least two for plus operator")
+			    return errors.New("Too little items on the stack. Need at least one item for print")
 			}
 			a := i.stack[len(i.stack)-1]
 			i.stack = i.stack[:len(i.stack)-1]
@@ -179,12 +171,11 @@ func (i *Interpreter) interpret(lexer *Lexer) error {
 
 	}
 	return nil
-
 }
 
 func main() {
 	lexer := Lexer{
-		text:     "10 20 + 100 - 10 * 10 / .",
+		text:     "10 20 + 100 - 10 * 10 / . ",
 		position: 0,
 		tokens:   []Token{},
 	}
