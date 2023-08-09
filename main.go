@@ -164,9 +164,7 @@ func (i *Interpreter) interpret(lexer *Lexer) error {
 			i.stack = i.stack[:len(i.stack)-1]
 			fmt.Println(a)
 		} else {
-
-			fmt.Println(token)
-
+            return errors.New("Unsupported token " + fmt.Sprint(token))
 		}
 
 	}
@@ -179,13 +177,13 @@ func main() {
                     100 - 
                     10 * 
                     10 / 
-                    . `,
+                    . ` ,
 		position: 0,
 		tokens:   []Token{},
 	}
 
 	if err := lexer.tokenize(); err != nil {
-		fmt.Println("inside error", lexer)
+		fmt.Println("Error in lexing", lexer)
 		fmt.Printf("err: %v\n", err)
 		return
 	} else {
@@ -194,7 +192,7 @@ func main() {
 		}
 
 		if err = interpreter.interpret(&lexer); err != nil {
-			fmt.Println("inside error", lexer)
+			fmt.Println("Error in interpretting", interpreter)
 			fmt.Printf("err: %v\n", err)
 			return
 		}
