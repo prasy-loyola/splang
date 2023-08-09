@@ -36,7 +36,7 @@ type Lexer struct {
 }
 
 func isAlphaCharacter(char byte) bool {
-	return (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z')
+	return (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') ||  char >= '|'
 }
 func isNumber(char byte) bool {
 	return char >= '0' && char <= '9'
@@ -195,7 +195,8 @@ func (itp *Interpreter) interpret(instructions *[]Instruction) error {
 			}
 			a := itp.stack[len(itp.stack)-1]
 			itp.stack = itp.stack[:len(itp.stack)-1]
-			fmt.Println(a)
+			fmt.Print(" ")
+			fmt.Print(a)
 		} else if instr.typ == IntrinsicDup {
 			if len(itp.stack) < 1 {
 				return errors.New("Too little items on the stack. Need at least one item for Dup")
@@ -211,14 +212,13 @@ func (itp *Interpreter) interpret(instructions *[]Instruction) error {
 
 			if len(itp.stack) < count {
 				return errors.New(fmt.Sprintf("Expected %d items on stack, but found only %d items", count, len(itp.stack)))
-
 			}
 			for i := 0; i < count; i++ {
 				num := itp.stack[len(itp.stack)-1]
 				itp.stack = itp.stack[:len(itp.stack)-1]
 				fmt.Print(string(num))
 			}
-			fmt.Println()
+			
 		} else {
 			return errors.New("Unsupported token " + fmt.Sprint(instr))
 		}
@@ -266,7 +266,12 @@ func (parser *Parser) parse(lexer *Lexer) error {
 			}
 		} else if token.typ == StringLiteral {
 			for i := len(token.literal) - 1; i >= 0; i-- {
-				parser.instructions = append(parser.instructions, Instruction{typ: PushInt, operand: int(token.literal[i])})
+                char := token.literal[i]
+                if char == '|' {
+                    char = '\n'
+                }
+
+				parser.instructions = append(parser.instructions, Instruction{typ: PushInt, operand: int(char)})
 			}
 			parser.instructions = append(parser.instructions, Instruction{typ: PushInt, operand: len(token.literal)})
 		} else if token.typ == Plus {
@@ -295,7 +300,16 @@ func (parser *Parser) parse(lexer *Lexer) error {
 
 func main() {
 	lexer := Lexer{
-		text:     `HelloWorld $ 10 @ * . percent $ works $`,
+		text:     `
+            VisheshaSelavu   $ 1 @.k|$
+            Koviluku         $ 5 @.k|$ +
+            GopiThuni        $ 5 @.k|$ +
+            GopiPathram      $ 5 @.k|$ +
+            GopiNagai        $ 76 4 * 62 * 1000 / 1 + @.k|$ +
+            GopiMathaSelavu  $ 3 @.k|$ +
+            Total            $ . k|$
+
+        `,
 		position: 0,
 		tokens:   []Token{},
 	}
