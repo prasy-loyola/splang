@@ -7,4 +7,9 @@
 0false_$ = Doesnt_Jump_$ ! Jumps|$
 1true_$ = Doesnt_Jump_$ ! Jumps|$
 
-
+10 while$ @ |$ = 
+    @. _$
+    1 - @ 
+|$
+#
+out_of_loop$.
