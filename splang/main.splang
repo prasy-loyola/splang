@@ -1,0 +1,10 @@
+3 @. _$ 4 @. _$ + Sum_is_$ . |$
+4 @. _$ 3 @. _$ - Difference_is_$ . |$
+3 @. _$ 4 @. _$ - Difference_is_$ . |$
+3 @. _$ 4 @. _$ * Product_is_$ . |$
+12 @. _$ 4 @. _$ / Divided_is_$ . |$
+
+0false_$ = Doesnt_Jump_$ ! Jumps|$
+1true_$ = Doesnt_Jump_$ ! Jumps|$
+
+

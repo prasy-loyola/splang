@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+    "os"
 )
 
 type TokenType int32
@@ -38,7 +39,7 @@ type Lexer struct {
 }
 
 func isAlphaCharacter(char byte) bool {
-	return (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') ||  char >= '|'
+	return (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') ||  char == '|' || char == '_'
 }
 func isNumber(char byte) bool {
 	return char >= '0' && char <= '9'
@@ -213,7 +214,6 @@ func (itp *Interpreter) interpret(instructions *[]Instruction) error {
 			}
 			a := itp.stack[len(itp.stack)-1]
 			itp.stack = itp.stack[:len(itp.stack)-1]
-			fmt.Print(" ")
 			fmt.Print(a)
 		} else if instr.typ == IntrinsicDup {
 			if len(itp.stack) < 1 {
@@ -298,6 +298,8 @@ func (parser *Parser) parse(lexer *Lexer) error {
                 char := token.literal[i]
                 if char == '|' {
                     char = '\n'
+                } else if char == '_' {
+                    char = ' '
                 }
 
 				parser.instructions = append(parser.instructions, Instruction{typ: PushInt, operand: int(char)})
@@ -339,27 +341,32 @@ func (parser *Parser) parse(lexer *Lexer) error {
 }
 
 func main() {
+
+    var text string
+    if file, err := os.ReadFile("main.splang"); err != nil {
+        fmt.Fprintf(os.Stderr, "error: %v\n", err)
+        os.Exit(1)
+    } else {
+        text = string(file)
+    }
+
 	lexer := Lexer{
-		text:     `
-           1 = DidntJump| $ ! Jumped$ 
-        `,
+		text:  text,
 		position: 0,
 		tokens:   []Token{},
 	}
 
 	if err := lexer.tokenize(); err != nil {
-		fmt.Println("Error in lexing", lexer)
-		fmt.Printf("err: %v\n", err)
-		return
+        fmt.Fprintf(os.Stderr, "error: while tokenizing %v\n", err)
+        os.Exit(1)
 	} else {
 		parser := Parser{
 			instructions: []Instruction{},
             jumps: []int{},
 		}
 		if err = parser.parse(&lexer); err != nil {
-			fmt.Println("Error in parsing", parser)
-			fmt.Printf("err: %v\n", err)
-			return
+            fmt.Fprintf(os.Stderr, "error: while parsing %v\n", err)
+            os.Exit(1)
 		}
 
 		interpreter := Interpreter{
@@ -367,13 +374,13 @@ func main() {
 		}
 
 		if err = interpreter.interpret(&parser.instructions); err != nil {
-			fmt.Println("Error in interpretting", interpreter)
-			fmt.Printf("err: %v\n", err)
-			return
+            fmt.Fprintf(os.Stderr, "error: while parsing %v\n", err)
+            os.Exit(1)
 		}
 
 		if len(interpreter.stack) > 0 {
-			fmt.Println("ERROR: elements still left in stack", interpreter.stack)
+            fmt.Fprintf(os.Stderr, "\nerror: elements still left in stack %d\n", interpreter.stack)
+            os.Exit(1)
 		}
 	}
 }
