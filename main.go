@@ -19,6 +19,8 @@ const (
 	Dot
 	Dollar
 	AtTheRate
+    EqualTo
+    Exclamation
 	EOF
 	TokenTypeCount
 )
@@ -47,8 +49,8 @@ func (lexer *Lexer) tokenize() error {
 	}
 	char := lexer.text[lexer.position]
 
-	if TokenTypeCount != 11 {
-		return errors.New(fmt.Sprint("Expected number of TokenTypes is 11 , but found ", TokenTypeCount))
+	if TokenTypeCount != 13 {
+		return errors.New(fmt.Sprint("Expected number of TokenTypes is 13 , but found ", TokenTypeCount))
 	}
 	if char == 0 {
 		token := Token{
@@ -119,6 +121,20 @@ func (lexer *Lexer) tokenize() error {
 			literal: string(char),
 		})
 		lexer.position++
+	} else if char == '=' {
+		lexer.tokens = append(lexer.tokens, Token{
+			typ:     EqualTo,
+			pos:     lexer.position,
+			literal: string(char),
+		})
+		lexer.position++
+	} else if char == '!' {
+		lexer.tokens = append(lexer.tokens, Token{
+			typ:     Exclamation,
+			pos:     lexer.position,
+			literal: string(char),
+		})
+		lexer.position++
 	} else if char == '@' {
 		lexer.tokens = append(lexer.tokens, Token{
 			typ:     AtTheRate,
@@ -141,7 +157,7 @@ func (lexer *Lexer) tokenize() error {
 			literal: string(char),
 		}
 		lexer.tokens = append(lexer.tokens, token)
-		return errors.New("Illegal token " + string(char))
+		return errors.New("Illegal token '" + string(char) + "'")
 	}
 	//fmt.Println(lexer)
 	return lexer.tokenize()
@@ -153,10 +169,12 @@ type Interpreter struct {
 
 func (itp *Interpreter) interpret(instructions *[]Instruction) error {
 
-	for _, instr := range *instructions {
+    
+    for pcounter := 0; pcounter < len(*instructions) ; pcounter++  {
+        instr := (*instructions)[pcounter]
 
-		if InstructionTypeCount != 8 {
-			return errors.New(fmt.Sprint("Expected number of InstructionType is 8 , but found ", InstructionTypeCount))
+		if InstructionTypeCount != 9 {
+			return errors.New(fmt.Sprint("Expected number of InstructionType is 9 , but found ", InstructionTypeCount))
 		}
 		if instr.typ == PushInt {
 			itp.stack = append(itp.stack, instr.operand)
@@ -203,6 +221,15 @@ func (itp *Interpreter) interpret(instructions *[]Instruction) error {
 			}
 			a := itp.stack[len(itp.stack)-1]
 			itp.stack = append(itp.stack, a)
+		} else if instr.typ == JumpIfZero {
+			if len(itp.stack) < 1 {
+				return errors.New("Too little items on the stack. Need at least one item for Jump")
+			}
+			a := itp.stack[len(itp.stack)-1]
+			itp.stack = itp.stack[:len(itp.stack)-1]
+            if a == 0 {
+                pcounter += instr.operand
+            }
 		} else if instr.typ == IntrinsicPrintStr {
 			if len(itp.stack) < 1 {
 				return errors.New("Too little items on the stack. Need the number of items to print")
@@ -239,6 +266,7 @@ const (
 	IntrinsicDup
 
 	PushInt
+    JumpIfZero
 
 	InstructionTypeCount
 )
@@ -250,13 +278,14 @@ type Instruction struct {
 
 type Parser struct {
 	instructions []Instruction
+    jumps []int
 }
 
 func (parser *Parser) parse(lexer *Lexer) error {
 	for _, token := range lexer.tokens {
 
-		if TokenTypeCount != 11 {
-			return errors.New(fmt.Sprint("Expected number of TokenTypes is 10 , but found ", TokenTypeCount))
+		if TokenTypeCount != 13 {
+			return errors.New(fmt.Sprint("Expected number of TokenTypes is 13 , but found ", TokenTypeCount))
 		}
 		if token.typ == Number {
 			if num, err := strconv.Atoi(token.literal); err != nil {
@@ -288,6 +317,17 @@ func (parser *Parser) parse(lexer *Lexer) error {
 			parser.instructions = append(parser.instructions, Instruction{typ: IntrinsicDup, operand: 0})
 		} else if token.typ == Dollar {
 			parser.instructions = append(parser.instructions, Instruction{typ: IntrinsicPrintStr, operand: 0})
+		} else if token.typ == EqualTo {
+			parser.instructions = append(parser.instructions, Instruction{typ: JumpIfZero, operand: 0} )
+            parser.jumps = append(parser.jumps, len(parser.instructions) - 1)
+		} else if token.typ == Exclamation{
+            if len(parser.jumps) < 1 {
+                return errors.New("Jump Label without a jump instruction")
+            }
+            jumpIndex := parser.jumps[len(parser.jumps)-1]
+            parser.jumps = parser.jumps[:len(parser.jumps)-1]
+            offset := len(parser.instructions) - jumpIndex - 1
+            parser.instructions[jumpIndex].operand = offset
 		} else {
 			return errors.New("Unsupported token " + fmt.Sprint(token))
 		}
@@ -301,14 +341,7 @@ func (parser *Parser) parse(lexer *Lexer) error {
 func main() {
 	lexer := Lexer{
 		text:     `
-            VisheshaSelavu   $ 1 @.k|$
-            Koviluku         $ 5 @.k|$ +
-            GopiThuni        $ 5 @.k|$ +
-            GopiPathram      $ 5 @.k|$ +
-            GopiNagai        $ 76 4 * 62 * 1000 / 1 + @.k|$ +
-            GopiMathaSelavu  $ 3 @.k|$ +
-            Total            $ . k|$
-
+           1 = DidntJump| $ ! Jumped$ 
         `,
 		position: 0,
 		tokens:   []Token{},
@@ -321,6 +354,7 @@ func main() {
 	} else {
 		parser := Parser{
 			instructions: []Instruction{},
+            jumps: []int{},
 		}
 		if err = parser.parse(&lexer); err != nil {
 			fmt.Println("Error in parsing", parser)
