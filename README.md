@@ -4,13 +4,13 @@
 
 ## Language reference
 
-`0-9+` digits - push number to stack
+`0-9` seqeuntial digits - push number to stack
 
-`a-zA-Z|\_+` characters - push the ascii code of characters, len to the stack
+`a-zA-Z|_` seqeuntial characters - push the ascii code of characters, len to the stack
 
 `|` - placeholder for new line
 
-`\_` - placeholder for space
+`_` - placeholder for space
 
 
 `+` - pop two numbers on top of the stack and push the sum to the stack
@@ -31,6 +31,6 @@
 
 `!` - label for the matching conditional jump
 
-`\#` - unconditional jump to the matching conditional jump
+`#` - unconditional jump to the matching conditional jump
 
 
